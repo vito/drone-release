@@ -1,0 +1,18 @@
+set -e -x
+
+apt-get -y install libapparmor-dev
+
+tar xzvf lxc_0.9.0/lxc-0.9.0.tar.gz
+
+pushd lxc-0.9.0
+  ./configure --enable-apparmor --prefix=${BOSH_INSTALL_TARGET}
+  make
+  make install
+popd
+
+# otherwise the full path to the socket is too long (max 108 chars)
+cp ${BOSH_INSTALL_TARGET}/etc/lxc/{default,lxc}.conf
+
+echo >> ${BOSH_INSTALL_TARGET}/etc/lxc/lxc.conf
+echo 'lxc.lxcpath = /var/vcap/data/lxc' >> \
+  ${BOSH_INSTALL_TARGET}/etc/lxc/lxc.conf

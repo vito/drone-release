@@ -1,0 +1,8 @@
+---
+name: drone
+
+dependencies:
+- golang_1.2
+
+files:
+- drone/**/*

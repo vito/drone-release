@@ -1,0 +1,53 @@
+---
+meta:
+  stemcell:
+    name: bosh-vsphere-esxi-ubuntu
+    version: latest
+
+director_uuid: 639a6f66-35e8-41d0-be36-4e62279f93ae
+
+networks:
+- name: cf1
+  subnets:
+  - range: 192.168.50.0/24
+    gateway: 192.168.50.1
+    dns:
+    - 192.168.50.1
+    reserved:
+    - 192.168.50.2-192.168.50.30 # microbosh
+    - 192.168.50.35-192.168.50.254
+    cloud_properties:
+      name: vboxnet0
+
+- name: internet
+  subnets:
+  - range:   10.0.3.0/24     # has to be 10.0.x.0/24
+    gateway: 10.0.3.2        # has to end with .2
+    dns:     ["10.0.3.3"]    # has to end with .3
+    cloud_properties:
+      type: nat
+
+resource_pools:
+- name: drone
+  cloud_properties:
+    ram: 1024
+    disk: 2048
+    cpu: 1
+
+compilation:
+  workers: 1
+  networks:
+    - name: cf1
+      default: [dns, gateway]
+    - name: internet
+  cloud_properties:
+    ram: 1024
+    disk: 4096
+    cpu: 2
+
+jobs:
+- name: drone
+  networks:
+    - name: cf1
+      default: [dns, gateway]
+    - name: internet

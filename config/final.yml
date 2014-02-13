@@ -1,0 +1,4 @@
+---
+final_name: drone
+blobstore:
+  provider: local

@@ -1,0 +1,10 @@
+---
+name: worker
+
+templates:
+  ctl.erb: bin/ctl
+
+packages:
+- pid_utils
+- docker_0.8.0
+- lxc_0.9.0

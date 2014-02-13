@@ -1,0 +1,11 @@
+networks: (( merge ))
+
+jobs:
+  - name: drone
+    template: ["worker", "web"]
+    instances: 1
+    resource_pool: drone
+    persistent_disk: 1024
+    networks: (( merge ))
+    properties:
+      network_name: cf1

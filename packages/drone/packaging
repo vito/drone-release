@@ -1,0 +1,20 @@
+set -e -x
+
+mkdir -p ${BOSH_INSTALL_TARGET}/bin
+
+export GOROOT=$(readlink -nf /var/vcap/packages/golang_1.2)
+export GOPATH=$BOSH_INSTALL_TARGET
+export PATH=$GOROOT/bin:$PATH
+export PATH=$GOPATH/bin:$PATH
+
+mkdir -p $GOPATH/src/github.com/drone/
+mv drone/ $GOPATH/src/github.com/drone/drone
+
+cd $GOPATH/src/github.com/drone/drone
+
+apt-get -y install bzr mercurial git-core
+
+make deps
+make
+
+cp bin/* ${BOSH_INSTALL_TARGET}/bin

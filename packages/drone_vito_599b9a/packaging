@@ -1,0 +1,8 @@
+set -e -x
+
+mkdir -p ${BOSH_INSTALL_TARGET}/bin
+
+for bin in drone_vito_599b9a/*; do
+  chmod +x $bin
+  cp $bin ${BOSH_INSTALL_TARGET}/bin
+done

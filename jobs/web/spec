@@ -1,0 +1,9 @@
+---
+name: web
+
+templates:
+  ctl.erb: bin/ctl
+
+packages:
+- pid_utils
+- drone

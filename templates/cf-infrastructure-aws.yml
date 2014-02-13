@@ -1,0 +1,46 @@
+meta:
+  stemcell:
+    name: bosh-aws-xen-ubuntu
+    version: latest
+
+  zones:
+    z1: (( properties.template_only.aws.availability_zone ))
+
+update:
+  canaries: 0
+  max_in_flight: 10
+  canary_watch_time: 1000-60000
+  update_watch_time: 1000-60000
+
+compilation:
+  cloud_properties:
+    instance_type: c1.medium
+    availability_zone: (( meta.zones.z1 ))
+
+properties:
+  template_only: (( merge ))
+
+jobs:
+- name: drone
+  networks:
+    - name: cf1
+
+networks:
+  - name: cf1
+    type: manual
+    subnets:
+      - range:    10.10.16.0/20
+        reserved: ["10.10.16.2 - 10.10.16.9"]
+        static:   ["10.10.16.10 - 10.10.16.255"]
+        gateway:  10.10.16.1
+        dns:      ["10.10.0.2"]
+        cloud_properties:
+          security_groups: ["cf"]
+          subnet: (( properties.template_only.aws.subnet_ids.cf1 ))
+
+resource_pools:
+  - name: drone
+    cloud_properties:
+      instance_type: m1.medium
+      availability_zone: (( meta.zones.z1 ))
+      elbs: ["cfrouter"]

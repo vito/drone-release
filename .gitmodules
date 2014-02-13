@@ -1,0 +1,3 @@
+[submodule "src/drone"]
+	path = src/drone
+	url = https://github.com/vito/drone.git

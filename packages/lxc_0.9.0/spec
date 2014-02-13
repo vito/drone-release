@@ -1,0 +1,7 @@
+---
+name: lxc_0.9.0
+
+dependencies: []
+
+files:
+- lxc_0.9.0/lxc-0.9.0.tar.gz
