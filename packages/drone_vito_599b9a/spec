@@ -1,9 +1,0 @@
----
-name: drone_vito_599b9a
-
-dependencies:
-- golang_1.2
-
-files:
-- drone_vito_599b9a/drone
-- drone_vito_599b9a/droned
