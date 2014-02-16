@@ -10,6 +10,8 @@ networks: (( merge ))
 
 jobs: (( merge ))
 
+properties: ~
+
 meta:
   environment: ~
 
@@ -19,7 +21,7 @@ meta:
 
 compilation:
   workers: 6
-  networks: (( merge ))
+  network: cf1
   reuse_compilation_vms: true
   cloud_properties: (( merge ))
 
