@@ -1,0 +1,20 @@
+#!/bin/bash
+# vim: set ft=sh
+
+export GOPATH=`mktemp -d $TMPDIR/drone-gopath.XXXXXXX`
+
+mkdir -p $GOPATH/src/github.com/drone
+cp -a src/drone/ $GOPATH/src/github.com/drone/drone
+
+go get -d -v github.com/drone/drone/...
+go get -d -v github.com/GeertJohan/go.rice/rice/...
+
+rm -rf `find $GOPATH -name .git`
+rm -rf `find $GOPATH -name .hg`
+rm -rf `find $GOPATH -name .bzr`
+
+# symlinks make everything go crazy
+find $GOPATH -type l -delete
+
+rm -rf $GOPATH/src/github.com/drone/drone
+rsync -a -P $GOPATH/ src/drone_deps/
