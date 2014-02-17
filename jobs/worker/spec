@@ -2,7 +2,8 @@
 name: worker
 
 templates:
-  ctl.erb: bin/ctl
+  ctl.sh: bin/ctl
+  cgroups-mount.sh: bin/cgroups-mount
 
 packages:
 - pid_utils

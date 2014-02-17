@@ -19,7 +19,7 @@ case $1 in
 
     mkdir -p $RUN_DIR
     chown -R vcap:vcap $RUN_DIR
-    
+
     mkdir -p $LOG_DIR
     chown -R vcap:vcap $RUN_DIR
 
@@ -28,8 +28,8 @@ case $1 in
 
     dpkg -i $DOCKER_PKG/aufs-tools_20110410-1_amd64.deb
 
-    # set up cgroups since nothing else does apparently
-    mount none -t cgroup /sys/fs/cgroup || true
+    # mount cgroups
+    $(dirname $0)/cgroups-mount
 
     # the sudo is, surprisingly, necessary (but not on 13.10's kernel)
     exec sudo PATH=$LXC_PKG/bin:$PATH $DOCKER_PKG/bin/docker -d \
