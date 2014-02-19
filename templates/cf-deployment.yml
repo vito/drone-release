@@ -10,8 +10,6 @@ networks: (( merge ))
 
 jobs: (( merge ))
 
-properties: ~
-
 meta:
   environment: ~
 

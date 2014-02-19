@@ -4,26 +4,29 @@ meta:
     name: bosh-vsphere-esxi-ubuntu
     version: latest
 
-director_uuid: 639a6f66-35e8-41d0-be36-4e62279f93ae
+director_uuid: fdf848f2-6e38-44ef-8b9a-fbe16d5fd2a4
 
 networks:
 - name: cf1
   subnets:
-  - range: 192.168.50.0/24
-    gateway: 192.168.50.1
+  - range: 192.168.57.0/24
+    gateway: 192.168.57.1
     dns:
-    - 192.168.50.1
+    - 192.168.57.1
+    static:
+    - 192.168.57.3
     reserved:
-    - 192.168.50.2-192.168.50.30 # microbosh
-    - 192.168.50.35-192.168.50.254
+    - 192.168.57.2 # microbosh
+    - 192.168.57.10-192.168.57.254
     cloud_properties:
-      name: vboxnet0
+      name: vboxnet1
 
 - name: internet
   subnets:
   - range:   10.0.3.0/24     # has to be 10.0.x.0/24
     gateway: 10.0.3.2        # has to end with .2
-    dns:     ["10.0.3.3"]    # has to end with .3
+    dns:     ["8.8.8.8"]     # has to end with .3
+    static:  ["10.0.3.7"]
     cloud_properties:
       type: nat
 
@@ -36,10 +39,7 @@ resource_pools:
 
 compilation:
   workers: 1
-  networks:
-    - name: cf1
-      default: [dns, gateway]
-    - name: internet
+  network: cf1
   cloud_properties:
     ram: 1024
     disk: 4096
@@ -49,5 +49,7 @@ jobs:
 - name: drone
   networks:
     - name: cf1
-      default: [dns, gateway]
+      static_ips: ["192.168.57.3"]
     - name: internet
+      default: [dns, gateway]
+      static_ips: ["10.0.3.7"]
