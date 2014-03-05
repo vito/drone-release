@@ -1,0 +1,10 @@
+---
+name: drone_wall
+
+dependencies:
+- golang_1.2
+
+files:
+- drone/**/*
+- drone-wall/**/*
+- drone_deps/**/*

@@ -6,6 +6,8 @@ mkdir -p drone_deps/src/github.com/drone
 mv drone drone_deps/src/github.com/drone/drone
 mv drone_deps drone
 
+export PATH=/var/vcap/packages/git/bin:$PATH
+
 export GOROOT=$(readlink -nf /var/vcap/packages/golang_1.2)
 export GOPATH=$PWD/drone
 export PATH=$GOROOT/bin:$PATH
@@ -15,6 +17,12 @@ go install github.com/GeertJohan/go.rice/rice
 
 cd $GOPATH/src/github.com/drone/drone
 
-make
+make embed
 
-cp bin/* ${BOSH_INSTALL_TARGET}/bin
+pushd cmd/drone
+  go build -o ${BOSH_INSTALL_TARGET}/bin/drone
+popd
+
+pushd cmd/droned
+  go build -ldflags "-X main.version bosh" -o ${BOSH_INSTALL_TARGET}/bin/droned
+popd

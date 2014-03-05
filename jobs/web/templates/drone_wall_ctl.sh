@@ -4,20 +4,20 @@ RUN_DIR=/var/vcap/sys/run/web
 LOG_DIR=/var/vcap/sys/log/web
 DATA_DIR=/var/vcap/data/web
 STORE_DIR=/var/vcap/store/web
-PIDFILE=$RUN_DIR/web.pid
+PIDFILE=$RUN_DIR/drone_wall.pid
 
-DRONE_PKG=/var/vcap/packages/drone
+WALL_PKG=/var/vcap/packages/drone_wall
 
 source /var/vcap/packages/pid_utils/pid_utils.sh
 
 case $1 in
 
   start)
-    pid_guard $PIDFILE "web"
+    pid_guard $PIDFILE "drone_wall"
 
     mkdir -p $RUN_DIR
     chown -R vcap:vcap $RUN_DIR
-    
+
     mkdir -p $LOG_DIR
     chown -R vcap:vcap $RUN_DIR
 
@@ -27,17 +27,16 @@ case $1 in
     mkdir -p $STORE_DIR
     chown -R vcap:vcap $STORE_DIR
 
-    echo $$ > /var/vcap/sys/run/web/web.pid
+    echo $$ > $PIDFILE
 
-    export PATH=$DRONE_PKG/bin:$PATH
+    export PATH=$WALL_PKG/bin:$PATH
 
-    setcap cap_net_bind_service=+ep $DRONE_PKG/bin/droned
-
-    exec chpst -u vcap:vcap $DRONE_PKG/bin/droned \
-      -port=:80 \
+    exec chpst -u vcap:vcap $WALL_PKG/bin/drone-wall \
+      -port=:8080 \
       -datasource=$STORE_DIR/droned.sqlite \
-      1>>$LOG_DIR/web.stdout.log \
-      2>>$LOG_DIR/web.stderr.log
+      -repos=<%= p("drone_wall.repos").join(",") %> \
+      1>>$LOG_DIR/drone_wall.stdout.log \
+      2>>$LOG_DIR/drone_wall.stderr.log
 
     ;;
 
@@ -47,7 +46,7 @@ case $1 in
     ;;
 
   *)
-    echo "Usage: ctl {start|stop}"
+    echo "Usage: wall_ctl {start|stop}"
 
     ;;
 

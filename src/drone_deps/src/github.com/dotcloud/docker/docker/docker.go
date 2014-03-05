@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	_ "github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
+	"github.com/dotcloud/docker/builtins"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
 	flag "github.com/dotcloud/docker/pkg/mflag"
@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		// Running in init mode
 		sysinit.SysInit()
 		return
@@ -39,8 +39,9 @@ func main() {
 		flDefaultIp          = flag.String([]string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
 		flInterContainerComm = flag.Bool([]string{"#icc", "-icc"}, true, "Enable inter-container communication")
 		flGraphDriver        = flag.String([]string{"s", "-storage-driver"}, "", "Force the docker runtime to use a specific storage driver")
+		flExecDriver         = flag.String([]string{"e", "-exec-driver"}, "native", "Force the docker runtime to use a specific exec driver")
 		flHosts              = opts.NewListOpts(api.ValidateHost)
-		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available")
+		flMtu                = flag.Int([]string{"#mtu", "-mtu"}, 0, "Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available")
 	)
 	flag.Var(&flDns, []string{"#dns", "-dns"}, "Force docker to use specific DNS servers")
 	flag.Var(&flHosts, []string{"H", "-host"}, "tcp://host:port, unix://path/to/socket, fd://* or fd://socketfd to use in daemon mode. Multiple sockets can be specified")
@@ -58,6 +59,9 @@ func main() {
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
+		if _, err := api.ValidateHost(defaultHost); err != nil {
+			log.Fatal(err)
+		}
 		flHosts.Set(defaultHost)
 	}
 
@@ -74,29 +78,63 @@ func main() {
 			return
 		}
 
-		eng, err := engine.New(*flRoot)
+		// set up the TempDir to use a canonical path
+		tmp := os.TempDir()
+		realTmp, err := utils.ReadSymlinkedDirectory(tmp)
+		if err != nil {
+			log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		}
+		os.Setenv("TMPDIR", realTmp)
+
+		// get the canonical path to the Docker root directory
+		root := *flRoot
+		var realRoot string
+		if _, err := os.Stat(root); err != nil && os.IsNotExist(err) {
+			realRoot = root
+		} else {
+			realRoot, err = utils.ReadSymlinkedDirectory(root)
+			if err != nil {
+				log.Fatalf("Unable to get the full path to root (%s): %s", root, err)
+			}
+		}
+
+		eng, err := engine.New(realRoot)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Load plugin: httpapi
-		job := eng.Job("initserver")
-		job.Setenv("Pidfile", *pidfile)
-		job.Setenv("Root", *flRoot)
-		job.SetenvBool("AutoRestart", *flAutoRestart)
-		job.SetenvList("Dns", flDns.GetAll())
-		job.SetenvBool("EnableIptables", *flEnableIptables)
-		job.SetenvBool("EnableIpForward", *flEnableIpForward)
-		job.Setenv("BridgeIface", *bridgeName)
-		job.Setenv("BridgeIP", *bridgeIp)
-		job.Setenv("DefaultIp", *flDefaultIp)
-		job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
-		job.Setenv("GraphDriver", *flGraphDriver)
-		job.SetenvInt("Mtu", *flMtu)
-		if err := job.Run(); err != nil {
-			log.Fatal(err)
-		}
+		// Load builtins
+		builtins.Register(eng)
+		// load the daemon in the background so we can immediately start
+		// the http api so that connections don't fail while the daemon
+		// is booting
+		go func() {
+			// Load plugin: httpapi
+			job := eng.Job("initserver")
+			job.Setenv("Pidfile", *pidfile)
+			job.Setenv("Root", realRoot)
+			job.SetenvBool("AutoRestart", *flAutoRestart)
+			job.SetenvList("Dns", flDns.GetAll())
+			job.SetenvBool("EnableIptables", *flEnableIptables)
+			job.SetenvBool("EnableIpForward", *flEnableIpForward)
+			job.Setenv("BridgeIface", *bridgeName)
+			job.Setenv("BridgeIP", *bridgeIp)
+			job.Setenv("DefaultIp", *flDefaultIp)
+			job.SetenvBool("InterContainerCommunication", *flInterContainerComm)
+			job.Setenv("GraphDriver", *flGraphDriver)
+			job.Setenv("ExecDriver", *flExecDriver)
+			job.SetenvInt("Mtu", *flMtu)
+			if err := job.Run(); err != nil {
+				log.Fatal(err)
+			}
+			// after the daemon is done setting up we can tell the api to start
+			// accepting connections
+			if err := eng.Job("acceptconnections").Run(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+
 		// Serve api
-		job = eng.Job("serveapi", flHosts.GetAll()...)
+		job := eng.Job("serveapi", flHosts.GetAll()...)
 		job.SetenvBool("Logging", true)
 		job.SetenvBool("EnableCors", *flEnableCors)
 		job.Setenv("Version", dockerversion.VERSION)

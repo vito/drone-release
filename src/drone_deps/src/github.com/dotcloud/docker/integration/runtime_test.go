@@ -85,7 +85,7 @@ func init() {
 	os.Setenv("TEST", "1")
 
 	// Hack to run sys init during unit testing
-	if selfPath := utils.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
+	if selfPath := utils.SelfPath(); strings.Contains(selfPath, ".dockerinit") {
 		sysinit.SysInit()
 		return
 	}
@@ -123,19 +123,8 @@ func init() {
 }
 
 func setupBaseImage() {
-	eng, err := engine.New(unitTestStoreBase)
-	if err != nil {
-		log.Fatalf("Can't initialize engine at %s: %s", unitTestStoreBase, err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", unitTestStoreBase)
-	job.SetenvBool("Autorestart", false)
-	job.Setenv("BridgeIface", unitTestNetworkBridge)
-	if err := job.Run(); err != nil {
-		log.Fatalf("Unable to create a runtime for tests: %s", err)
-	}
-
-	job = eng.Job("inspect", unitTestImageName, "image")
+	eng := newTestEngine(log.New(os.Stderr, "", 0), false, unitTestStoreBase)
+	job := eng.Job("inspect", unitTestImageName, "image")
 	img, _ := job.Stdout.AddEnv()
 	// If the unit test is not found, try to download it.
 	if err := job.Run(); err != nil || img.Get("id") != unitTestImageID {
@@ -171,9 +160,14 @@ func spawnGlobalDaemon() {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
+
 	// Give some time to ListenAndServer to actually start
 	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
+
+	if err := eng.Job("acceptconnections").Run(); err != nil {
+		log.Fatalf("Unable to accept connections for test api: %s", err)
+	}
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
@@ -570,18 +564,7 @@ func TestRestore(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	root := eng.Root()
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	eng = newTestEngine(t, false, eng.Root())
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
@@ -607,22 +590,14 @@ func TestRestore(t *testing.T) {
 }
 
 func TestReloadContainerLinks(t *testing.T) {
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
-	// and we want to set it to true.
 	root, err := newTestDirectory(unitTestStoreBase)
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng, err := engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job := eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
+	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
+	// and we want to set it to true.
+
+	eng := newTestEngine(t, true, root)
 
 	runtime1 := mkRuntimeFromEngine(eng, t)
 	defer nuke(runtime1)
@@ -663,17 +638,7 @@ func TestReloadContainerLinks(t *testing.T) {
 
 	// Here are are simulating a docker restart - that is, reloading all containers
 	// from scratch
-	eng, err = engine.New(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	job = eng.Job("initserver")
-	job.Setenv("Root", eng.Root())
-	job.SetenvBool("Autorestart", false)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	eng = newTestEngine(t, false, root)
 	runtime2 := mkRuntimeFromEngine(eng, t)
 	if len(runtime2.List()) != 2 {
 		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))

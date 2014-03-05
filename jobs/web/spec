@@ -2,8 +2,14 @@
 name: web
 
 templates:
-  ctl.sh: bin/ctl
+  drone_ctl.sh: bin/drone_ctl
+  drone_wall_ctl.sh: bin/drone_wall_ctl
 
 packages:
-- pid_utils
-- drone
+  - pid_utils
+  - drone
+  - drone_wall
+
+properties:
+  drone_wall.repos:
+    description: array repository URLs to watch

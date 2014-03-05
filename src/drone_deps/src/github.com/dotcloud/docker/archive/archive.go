@@ -1,13 +1,13 @@
 package archive
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"io/ioutil"
 	"os"
@@ -165,6 +165,13 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
+
+	}
+
+	capability, _ := Lgetxattr(path, "security.capability")
+	if capability != nil {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs["security.capability"] = string(capability)
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
@@ -186,20 +193,25 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) error {
+	// hdr.Mode is in linux format, which we can use for sycalls,
+	// but for os.Foo() calls we need the mode converted to os.FileMode,
+	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
+	hdrInfo := hdr.FileInfo()
+
 	switch hdr.Typeflag {
 	case tar.TypeDir:
 		// Create directory unless it exists as a directory already.
 		// In that case we just want to merge the two
 		if fi, err := os.Lstat(path); !(err == nil && fi.IsDir()) {
-			if err := os.Mkdir(path, os.FileMode(hdr.Mode)); err != nil {
+			if err := os.Mkdir(path, hdrInfo.Mode()); err != nil {
 				return err
 			}
 		}
 
 	case tar.TypeReg, tar.TypeRegA:
 		// Source is regular file
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.FileMode(hdr.Mode))
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, hdrInfo.Mode())
 		if err != nil {
 			return err
 		}
@@ -246,10 +258,16 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader *tar.Reader)
 		return err
 	}
 
+	for key, value := range hdr.Xattrs {
+		if err := Lsetxattr(path, key, []byte(value), 0); err != nil {
+			return err
+		}
+	}
+
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := os.Chmod(path, os.FileMode(hdr.Mode&07777)); err != nil {
+		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
 			return err
 		}
 	}

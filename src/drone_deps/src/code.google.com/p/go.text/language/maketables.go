@@ -471,12 +471,11 @@ func (b *builder) writeConst(name string, x interface{}) {
 }
 
 // writeConsts computes f(v) for all v in values and writes the results
-// as constants named prefix+v to a single constant block.
-func (b *builder) writeConsts(prefix string, f func(string) int, values ...string) {
-	b.comment(prefix)
+// as constants named _v to a single constant block.
+func (b *builder) writeConsts(f func(string) int, values ...string) {
 	b.pf("const (")
 	for _, v := range values {
-		b.pf("\t%s%s = %v", prefix, v, f(v))
+		b.pf("\t_%s = %v", v, f(v))
 	}
 	b.pf(")")
 }
@@ -725,12 +724,21 @@ func (b *builder) parseIndices() {
 	b.locale.parse(meta.DefaultContent.Locales)
 }
 
+var langConsts = []string{
+	"af", "am", "ar", "az", "bg", "bn", "ca", "cs", "da", "de", "el", "en", "es",
+	"et", "fa", "fi", "fil", "fr", "gu", "he", "hi", "hr", "hu", "hy", "id", "is",
+	"it", "ja", "ka", "kk", "km", "kn", "ko", "ky", "lo", "lt", "lv", "mk", "ml",
+	"mn", "mo", "mr", "ms", "mul", "my", "nb", "ne", "nl", "no", "pa", "pl", "pt",
+	"ro", "ru", "sh", "si", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th",
+	"tl", "tn", "tr", "uk", "ur", "uz", "vi", "zh", "zu",
+}
+
 // writeLanguage generates all tables needed for language canonicalization.
 func (b *builder) writeLanguage() {
 	meta := b.supp.Metadata
 
 	b.writeConst("nonCanonicalUnd", b.lang.index("und"))
-	b.writeConsts("lang_", b.lang.index, "de", "en", "fil", "fr", "it", "mo", "mul", "nb", "no", "sh", "sr", "tl")
+	b.writeConsts(b.lang.index, langConsts...)
 	b.writeConst("langPrivateStart", b.langIndex("qaa"))
 	b.writeConst("langPrivateEnd", b.langIndex("qtz"))
 
@@ -859,8 +867,13 @@ func (b *builder) writeLanguage() {
 	})
 }
 
+var scriptConsts = []string{
+	"Latn", "Hani", "Hans", "Hant", "Qaaa", "Qaai", "Qabx", "Zinh", "Zyyy",
+	"Zzzz",
+}
+
 func (b *builder) writeScript() {
-	b.writeConsts("scr", b.script.index, "Latn", "Hani", "Hans", "Qaaa", "Qaai", "Qabx", "Zinh", "Zyyy", "Zzzz")
+	b.writeConsts(b.script.index, scriptConsts...)
 	b.writeString("script", b.script.join())
 
 	supp := make([]uint8, len(b.lang.slice()))
@@ -889,8 +902,12 @@ func parseM49(s string) uint16 {
 	return uint16(v)
 }
 
+var regionConsts = []string{
+	"001", "419", "BR", "CA", "ES", "GB", "MD", "PT", "US", "ZZ", "XA", "XC",
+}
+
 func (b *builder) writeRegion() {
-	b.writeConsts("reg", b.region.index, "MD", "US", "ZZ", "XA", "XC")
+	b.writeConsts(b.region.index, regionConsts...)
 
 	isoOffset := b.region.index("AA")
 	m49map := make([]uint16, len(b.region.slice()))
@@ -1155,7 +1172,7 @@ func (b *builder) writeLanguageInfo() {
 }
 
 func (b *builder) writeCurrencies() {
-	b.writeConsts("cur", b.currency.index, "XTS", "XXX")
+	b.writeConsts(b.currency.index, "XTS", "XXX")
 
 	digits := map[string]uint64{}
 	rounding := map[string]uint64{}
@@ -1331,6 +1348,7 @@ type mutualIntelligibility struct {
 }
 
 type scriptIntelligibility struct {
+	lang       uint16 // langID or 0 if *
 	want, have uint8
 	conf       uint8
 }
@@ -1354,7 +1372,7 @@ func toConf(pct uint8) uint8 {
 	switch {
 	case pct == 100:
 		return 3 // Exact
-	case pct > 90:
+	case pct >= 90:
 		return 2 // High
 	case pct > 50:
 		return 1 // Low
@@ -1381,25 +1399,51 @@ func (b *builder) writeMatchData() {
 	for _, m := range lm[0].LanguageMatch {
 		d := strings.Split(m.Desired, "-")
 		s := strings.Split(m.Supported, "-")
-		if len(d) != len(s) || len(d) > 2 || s[0] == "nb" || d[0] == "nb" {
+		if len(d) != len(s) || len(d) > 2 {
 			// Skip all entries with regions and work around CLDR bug.
-			// Also skip "nb", which maps to "no" by means of canonicalization.
 			continue
 		}
 		pct, _ := strconv.ParseInt(m.Percent, 10, 8)
-		if len(d) == 2 && d[0] == "*" && s[0] == "*" && d[1] != "*" {
+		if len(d) == 2 && d[0] == s[0] && d[1] != "*" {
+			lang := uint16(0)
+			if d[0] != "*" {
+				lang = uint16(b.langIndex(d[0]))
+			}
 			matchScript = append(matchScript, scriptIntelligibility{
+				lang: lang,
 				want: uint8(b.script.index(d[1])),
 				have: uint8(b.script.index(s[1])),
 				conf: toConf(uint8(pct)),
 			})
+			if m.Oneway != "true" {
+				matchScript = append(matchScript, scriptIntelligibility{
+					lang: lang,
+					want: uint8(b.script.index(s[1])),
+					have: uint8(b.script.index(d[1])),
+					conf: toConf(uint8(pct)),
+				})
+			}
 		} else if len(d) == 1 && d[0] != "*" {
+			if pct == 100 {
+				// nb == no is already handled by macro mapping. Check there
+				// really is only this case.
+				if d[0] != "no" || s[0] != "nb" {
+					log.Fatalf("unhandled equivalence %s == %s", s[0], d[0])
+				}
+				continue
+			}
 			matchLang = append(matchLang, mutualIntelligibility{
 				want:   uint16(b.langIndex(d[0])),
 				have:   uint16(b.langIndex(s[0])),
 				conf:   uint8(pct),
 				oneway: m.Oneway == "true",
 			})
+		} else {
+			a := []string{"*-*;*-*", "*;*"}
+			s := strings.Join([]string{m.Desired, m.Supported}, ";")
+			if i := sort.SearchStrings(a, s); i == len(a) || a[i] != s {
+				log.Fatalf("%q not handled", s)
+			}
 		}
 	}
 	sort.Sort(sortByConf(matchLang))

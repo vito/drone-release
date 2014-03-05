@@ -10,20 +10,81 @@ type fromTo struct {
 }
 
 const nonCanonicalUnd = 415
-
 const (
-	lang_de  = 82
-	lang_en  = 97
-	lang_fil = 107
-	lang_fr  = 111
-	lang_it  = 162
-	lang_mo  = 266
-	lang_mul = 272
-	lang_nb  = 279
-	lang_no  = 290
-	lang_sh  = 346
-	lang_sr  = 362
-	lang_tl  = 392
+	_af  = 6
+	_am  = 10
+	_ar  = 13
+	_az  = 20
+	_bg  = 33
+	_bn  = 43
+	_ca  = 57
+	_cs  = 74
+	_da  = 79
+	_de  = 82
+	_el  = 96
+	_en  = 97
+	_es  = 99
+	_et  = 100
+	_fa  = 103
+	_fi  = 106
+	_fil = 107
+	_fr  = 111
+	_gu  = 130
+	_he  = 136
+	_hi  = 137
+	_hr  = 144
+	_hu  = 147
+	_hy  = 148
+	_id  = 152
+	_is  = 161
+	_it  = 162
+	_ja  = 165
+	_ka  = 171
+	_kk  = 191
+	_km  = 195
+	_kn  = 197
+	_ko  = 198
+	_ky  = 216
+	_lo  = 232
+	_lt  = 234
+	_lv  = 239
+	_mk  = 260
+	_ml  = 261
+	_mn  = 262
+	_mo  = 266
+	_mr  = 268
+	_ms  = 269
+	_mul = 272
+	_my  = 274
+	_nb  = 279
+	_ne  = 282
+	_nl  = 286
+	_no  = 290
+	_pa  = 305
+	_pl  = 311
+	_pt  = 315
+	_ro  = 324
+	_ru  = 326
+	_sh  = 346
+	_si  = 349
+	_sk  = 351
+	_sl  = 352
+	_sq  = 361
+	_sr  = 362
+	_sv  = 371
+	_sw  = 372
+	_ta  = 377
+	_te  = 381
+	_th  = 386
+	_tl  = 392
+	_tn  = 394
+	_tr  = 397
+	_uk  = 412
+	_ur  = 418
+	_uz  = 419
+	_vi  = 422
+	_zh  = 440
+	_zu  = 441
 )
 
 const langPrivateStart = 11260
@@ -424,15 +485,16 @@ var tagAlias = map[string]uint16{
 }
 
 const (
-	scrLatn = 75
-	scrHani = 46
-	scrHans = 48
-	scrQaaa = 119
-	scrQaai = 127
-	scrQabx = 168
-	scrZinh = 212
-	scrZyyy = 216
-	scrZzzz = 217
+	_Latn = 75
+	_Hani = 46
+	_Hans = 48
+	_Hant = 49
+	_Qaaa = 119
+	_Qaai = 127
+	_Qabx = 168
+	_Zinh = 212
+	_Zyyy = 216
+	_Zzzz = 217
 )
 
 // script is an alphabetically sorted list of ISO 15924 codes. The index
@@ -499,11 +561,18 @@ var suppressScript = [444]uint8{
 }
 
 const (
-	regMD = 186
-	regUS = 306
-	regZZ = 354
-	regXA = 320
-	regXC = 322
+	_001 = 1
+	_419 = 30
+	_BR  = 64
+	_CA  = 72
+	_ES  = 109
+	_GB  = 121
+	_MD  = 186
+	_PT  = 236
+	_US  = 306
+	_ZZ  = 354
+	_XA  = 320
+	_XC  = 322
 )
 
 // isoRegionOffset needs to be added to the index of regionISO to obtain the regionID
@@ -658,82 +727,82 @@ var fromM49 = [332]uint16{
 	49491, 50004, 50517, 51030, 51543, 52056, 52569, 53090,
 }
 
-// Size: 1254 bytes
+// Size: 1273 bytes
 var variantIndex = map[string]uint8{
 	"1606nict": 0x0,
 	"1694acad": 0x1,
 	"1901":     0x2,
 	"1959acad": 0x3,
-	"1994":     0x3c,
+	"1994":     0x3d,
 	"1996":     0x4,
-	"alalc97":  0x3e,
+	"alalc97":  0x3f,
 	"aluku":    0x5,
 	"arevela":  0x6,
 	"arevmda":  0x7,
 	"baku1926": 0x8,
-	"barla":    0x9,
-	"bauddha":  0xa,
-	"biscayan": 0xb,
-	"biske":    0x37,
-	"bohoric":  0xc,
-	"boont":    0xd,
-	"dajnko":   0xe,
-	"ekavsk":   0xf,
-	"emodeng":  0x10,
-	"fonipa":   0x3f,
-	"fonupa":   0x40,
-	"fonxsamp": 0x41,
-	"hepburn":  0x11,
-	"heploc":   0x3d,
-	"hognorsk": 0x12,
-	"ijekavsk": 0x13,
-	"itihasa":  0x14,
-	"jauer":    0x15,
-	"jyutping": 0x16,
-	"kkcor":    0x17,
-	"kscor":    0x18,
-	"laukika":  0x19,
-	"lipaw":    0x38,
-	"luna1918": 0x1a,
-	"metelko":  0x1b,
-	"monoton":  0x1c,
-	"ndyuka":   0x1d,
-	"nedis":    0x1e,
-	"njiva":    0x39,
-	"nulik":    0x1f,
-	"osojs":    0x3a,
-	"pamaka":   0x20,
-	"petr1708": 0x21,
-	"pinyin":   0x22,
-	"polyton":  0x23,
-	"puter":    0x24,
-	"rigik":    0x25,
-	"rozaj":    0x26,
-	"rumgr":    0x27,
-	"scotland": 0x28,
-	"scouse":   0x29,
-	"solba":    0x3b,
-	"sotav":    0x2a,
-	"surmiran": 0x2b,
-	"sursilv":  0x2c,
-	"sutsilv":  0x2d,
-	"tarask":   0x2e,
-	"uccor":    0x2f,
-	"ucrcor":   0x30,
-	"ulster":   0x31,
-	"unifon":   0x32,
-	"vaidika":  0x33,
-	"valencia": 0x34,
-	"vallader": 0x35,
-	"wadegile": 0x36,
+	"balanka":  0x9,
+	"barla":    0xa,
+	"bauddha":  0xb,
+	"biscayan": 0xc,
+	"biske":    0x38,
+	"bohoric":  0xd,
+	"boont":    0xe,
+	"dajnko":   0xf,
+	"ekavsk":   0x10,
+	"emodeng":  0x11,
+	"fonipa":   0x40,
+	"fonupa":   0x41,
+	"fonxsamp": 0x42,
+	"hepburn":  0x12,
+	"heploc":   0x3e,
+	"hognorsk": 0x13,
+	"ijekavsk": 0x14,
+	"itihasa":  0x15,
+	"jauer":    0x16,
+	"jyutping": 0x17,
+	"kkcor":    0x18,
+	"kscor":    0x19,
+	"laukika":  0x1a,
+	"lipaw":    0x39,
+	"luna1918": 0x1b,
+	"metelko":  0x1c,
+	"monoton":  0x1d,
+	"ndyuka":   0x1e,
+	"nedis":    0x1f,
+	"njiva":    0x3a,
+	"nulik":    0x20,
+	"osojs":    0x3b,
+	"pamaka":   0x21,
+	"petr1708": 0x22,
+	"pinyin":   0x23,
+	"polyton":  0x24,
+	"puter":    0x25,
+	"rigik":    0x26,
+	"rozaj":    0x27,
+	"rumgr":    0x28,
+	"scotland": 0x29,
+	"scouse":   0x2a,
+	"solba":    0x3c,
+	"sotav":    0x2b,
+	"surmiran": 0x2c,
+	"sursilv":  0x2d,
+	"sutsilv":  0x2e,
+	"tarask":   0x2f,
+	"uccor":    0x30,
+	"ucrcor":   0x31,
+	"ulster":   0x32,
+	"unifon":   0x33,
+	"vaidika":  0x34,
+	"valencia": 0x35,
+	"vallader": 0x36,
+	"wadegile": 0x37,
 }
 
 // variantNumSpecialized is the number of specialized variants in variants.
-const variantNumSpecialized = 62
-
+const variantNumSpecialized = 63
 const (
-	curXTS = 280
-	curXXX = 282
+	_XTS = 280
+	_XXX = 282
 )
 
 // currency holds an alphabetically sorted list of canonical 3-letter currency identifiers.
@@ -2045,6 +2114,7 @@ type mutualIntelligibility struct {
 }
 
 type scriptIntelligibility struct {
+	lang uint16
 	want uint8
 	have uint8
 	conf uint8
@@ -2053,27 +2123,31 @@ type scriptIntelligibility struct {
 // matchLang holds pairs of langIDs of base languages that are typically
 // mutually intelligible. Each pair is associated with a confidence and
 // whether the intelligibility goes one or both ways.
-// Size: 66 bytes, 11 elements
-var matchLang = [11]mutualIntelligibility{
+// Size: 78 bytes, 13 elements
+var matchLang = [13]mutualIntelligibility{
+	{want: 0x120, have: 0x117, conf: 0x2, oneway: false},
 	{want: 0x120, have: 0x122, conf: 0x2, oneway: false},
+	{want: 0x15a, have: 0x90, conf: 0x2, oneway: false},
 	{want: 0x16a, have: 0x90, conf: 0x2, oneway: false},
 	{want: 0x15a, have: 0x16a, conf: 0x2, oneway: false},
 	{want: 0x16e, have: 0x1, conf: 0x2, oneway: false},
 	{want: 0x90, have: 0x31, conf: 0x2, oneway: false},
 	{want: 0x15a, have: 0x31, conf: 0x2, oneway: false},
 	{want: 0x16a, have: 0x31, conf: 0x2, oneway: false},
-	{want: 0x15a, have: 0x90, conf: 0x2, oneway: false},
-	{want: 0x4f, have: 0x122, conf: 0x1, oneway: false},
-	{want: 0x10d, have: 0x98, conf: 0x1, oneway: false},
+	{want: 0x4f, have: 0x122, conf: 0x2, oneway: false},
+	{want: 0x4f, have: 0x117, conf: 0x2, oneway: false},
+	{want: 0x10d, have: 0x98, conf: 0x2, oneway: false},
 	{want: 0x81, have: 0x52, conf: 0x1, oneway: true},
 }
 
 // matchScript holds pairs of scriptIDs where readers of one script
 // can typically also read the other. Each is associated with a confidence.
-// Size: 6 bytes, 2 elements
-var matchScript = [2]scriptIntelligibility{
-	{want: 0x30, have: 0x31, conf: 0x1},
-	{want: 0x31, have: 0x30, conf: 0x1},
+// Size: 24 bytes, 4 elements
+var matchScript = [4]scriptIntelligibility{
+	{lang: 0x16a, want: 0x4b, have: 0x1b, conf: 0x2},
+	{lang: 0x16a, want: 0x1b, have: 0x4b, conf: 0x2},
+	{lang: 0x0, want: 0x30, have: 0x31, conf: 0x1},
+	{lang: 0x0, want: 0x31, have: 0x30, conf: 0x1},
 }
 
 // nRegionGroups is the number of region groups.  All regionIDs < nRegionGroups
@@ -2144,4 +2218,4 @@ var regionInclusionNext = [75]uint8{
 	25, 74, 62,
 }
 
-// Size: 16.8K (17225 bytes); Check: 6CD0B27D
+// Size: 16.9K (17274 bytes); Check: 2F36588B

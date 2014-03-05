@@ -1,5 +1,11 @@
 check process web
-  with pidfile /var/vcap/sys/run/web/web.pid
-  start program "/var/vcap/jobs/web/bin/ctl start"
-  stop program "/var/vcap/jobs/web/bin/ctl stop"
+  with pidfile /var/vcap/sys/run/web/drone.pid
+  start program "/var/vcap/jobs/web/bin/drone_ctl start"
+  stop program "/var/vcap/jobs/web/bin/drone_ctl stop"
+  group vcap
+
+check process wall
+  with pidfile /var/vcap/sys/run/web/wall.pid
+  start program "/var/vcap/jobs/web/bin/drone_wall_ctl start"
+  stop program "/var/vcap/jobs/web/bin/drone_wall_ctl stop"
   group vcap

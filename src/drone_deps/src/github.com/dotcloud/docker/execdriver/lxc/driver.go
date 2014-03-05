@@ -76,7 +76,10 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	if err := execdriver.SetTerminal(c, pipes); err != nil {
+		return -1, err
+	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
 		return -1, err
@@ -203,11 +206,20 @@ func (d *driver) Restore(c *execdriver.Command) error {
 }
 
 func (d *driver) version() string {
-	version := ""
-	if output, err := exec.Command("lxc-version").CombinedOutput(); err == nil {
-		outputStr := string(output)
-		if len(strings.SplitN(outputStr, ":", 2)) == 2 {
-			version = strings.TrimSpace(strings.SplitN(outputStr, ":", 2)[1])
+	var (
+		version string
+		output  []byte
+		err     error
+	)
+	if _, errPath := exec.LookPath("lxc-version"); errPath == nil {
+		output, err = exec.Command("lxc-version").CombinedOutput()
+	} else {
+		output, err = exec.Command("lxc-start", "--version").CombinedOutput()
+	}
+	if err == nil {
+		version = strings.TrimSpace(string(output))
+		if parts := strings.SplitN(version, ":", 2); len(parts) == 2 {
+			version = strings.TrimSpace(parts[1])
 		}
 	}
 	return version
@@ -298,9 +310,8 @@ func (d *driver) Info(id string) execdriver.Info {
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
-	// memory is chosen randomly, any cgroup used by docker works
-	subsystem := "memory"
-
+	// cpu is chosen because it is the only non optional subsystem in cgroups
+	subsystem := "cpu"
 	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
 	if err != nil {
 		return pids, err

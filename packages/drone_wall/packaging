@@ -1,0 +1,20 @@
+set -e -x
+
+mkdir -p ${BOSH_INSTALL_TARGET}/bin
+
+mkdir -p drone_deps/src/github.com/drone
+mv drone-wall drone_deps/src/github.com/drone/drone-wall
+mv drone drone_deps/src/github.com/drone/drone
+mv drone_deps drone-wall
+
+export GOROOT=$(readlink -nf /var/vcap/packages/golang_1.2)
+export GOPATH=$PWD/drone-wall
+export PATH=$GOROOT/bin:$PATH
+export PATH=$GOPATH/bin:$PATH
+
+go install github.com/GeertJohan/go.rice/rice
+
+pushd $GOPATH/src/github.com/drone/drone-wall
+  rice embed
+  go build -o ${BOSH_INSTALL_TARGET}/bin/drone-wall
+popd
