@@ -5,7 +5,7 @@ check process web
   group vcap
 
 check process wall
-  with pidfile /var/vcap/sys/run/web/wall.pid
+  with pidfile /var/vcap/sys/run/web/drone_wall.pid
   start program "/var/vcap/jobs/web/bin/drone_wall_ctl start"
   stop program "/var/vcap/jobs/web/bin/drone_wall_ctl stop"
   group vcap
