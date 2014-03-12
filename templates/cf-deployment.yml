@@ -19,7 +19,7 @@ meta:
 
 compilation:
   workers: 6
-  network: cf1
+  network: drone
   reuse_compilation_vms: true
   cloud_properties: (( merge ))
 
@@ -32,7 +32,7 @@ update:
 
 resource_pools:
   - name: drone
-    network: cf1
+    network: drone
     size: (( auto ))
     stemcell: (( meta.stemcell ))
     cloud_properties: (( merge ))

@@ -8,6 +8,6 @@ jobs:
     persistent_disk: 1024
     networks: (( merge ))
     properties:
-      network_name: cf1
+      network_name: drone
       drone_wall:
         repos: (( merge || [] ))
