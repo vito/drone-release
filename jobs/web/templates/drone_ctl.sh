@@ -4,6 +4,7 @@ RUN_DIR=/var/vcap/sys/run/web
 LOG_DIR=/var/vcap/sys/log/web
 DATA_DIR=/var/vcap/data/web
 STORE_DIR=/var/vcap/store/web
+TMP_DIR=/var/vcap/data/tmp/web
 PIDFILE=$RUN_DIR/drone.pid
 
 DRONE_PKG=/var/vcap/packages/drone
@@ -27,9 +28,13 @@ case $1 in
     mkdir -p $STORE_DIR
     chown -R vcap:vcap $STORE_DIR
 
+    mkdir -p $TMP_DIR
+    chown -R vcap:vcap $TMP_DIR
+
     echo $$ > $PIDFILE
 
     export PATH=$DRONE_PKG/bin:$PATH
+    export DRONE_TMP=$TMP_DIR/drone
 
     setcap cap_net_bind_service=+ep $DRONE_PKG/bin/droned
 
