@@ -13,3 +13,4 @@ packages:
 properties:
   drone_wall.repos:
     description: array repository URLs to watch
+    default: []
