@@ -85,7 +85,7 @@ dynamically allocated ports:
 .. code-block:: bash
 
    # Bind to a dynamically allocated port
-   docker run -p 127.0.0.1::8080 -name dyn-bound <image> <cmd>
+   docker run -p 127.0.0.1::8080 --name dyn-bound <image> <cmd>
 
    # Lookup the actual port
    docker port dyn-bound 8080
@@ -114,21 +114,21 @@ exposure, is possible because ``client`` is started after ``server``
 has been started.
 
 Here is a full example. On ``server``, the port of interest is
-exposed. The exposure is done either through the ``-expose`` parameter
+exposed. The exposure is done either through the ``--expose`` parameter
 to the ``docker run`` command, or the ``EXPOSE`` build command in a
 Dockerfile:
 
 .. code-block:: bash
 
     # Expose port 80
-    docker run -expose 80 -name server <image> <cmd>
+    docker run --expose 80 --name server <image> <cmd>
 
 The ``client`` then links to the ``server``:
 
 .. code-block:: bash
 
     # Link
-    docker run -name client -link server:linked-server <image> <cmd>
+    docker run --name client --link server:linked-server <image> <cmd>
 
 ``client`` locally refers to ``server`` as ``linked-server``. The
 following environment variables, among others, are available on
@@ -149,4 +149,4 @@ This tells ``client`` that a service is running on port 80 of
 ``server`` and that ``server`` is accessible at the IP address
 172.17.0.8
 
-Note: Using the ``-p`` parameter also exposes the port..
+Note: Using the ``-p`` parameter also exposes the port.

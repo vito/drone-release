@@ -26,10 +26,7 @@ Check runtime dependencies
 
 To run properly, docker needs the following software to be installed at runtime:
 
-- iproute2 version 3.5 or later (build after 2012-05-21), and
-  specifically the "ip" utility
 - iptables version 1.4 or later
-- The LXC utility scripts (http://lxc.sourceforge.net) version 0.8 or later
 - Git version 1.7 or later
 - XZ Utils 4.9 or later
 
@@ -41,7 +38,7 @@ Docker in daemon mode has specific kernel requirements. For details,
 check your distribution in :ref:`installation_list`.
 
 Note that Docker also has a client mode, which can run on virtually
-any linux kernel (it even builds on OSX!).
+any Linux kernel (it even builds on OSX!).
 
 
 Get the docker binary:
@@ -80,7 +77,8 @@ always run as the root user, but if you run the ``docker`` client as a
 user in the *docker* group then you don't need to add ``sudo`` to all
 the client commands.
 
-.. warning:: The *docker* group is root-equivalent.
+.. warning:: The *docker* group (or the group specified with ``-G``) is
+   root-equivalent; see :ref:`dockersecurity_daemon` details.
 
 
 Upgrades

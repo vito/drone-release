@@ -2,9 +2,11 @@ package docker
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/archive"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
+	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/server"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net"
@@ -350,7 +352,7 @@ func TestBuild(t *testing.T) {
 	}
 }
 
-func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*docker.Image, error) {
+func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, useCache bool) (*image.Image, error) {
 	if eng == nil {
 		eng = NewTestEngine(t)
 		runtime := mkRuntimeFromEngine(eng, t)
@@ -382,7 +384,7 @@ func buildImage(context testContextTemplate, t *testing.T, eng *engine.Engine, u
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, useCache, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	id, err := buildfile.Build(context.Archive(dockerfile, t))
 	if err != nil {
 		return nil, err
@@ -439,6 +441,25 @@ func TestBuildUser(t *testing.T) {
 	}
 }
 
+func TestBuildRelativeWorkdir(t *testing.T) {
+	img, err := buildImage(testContextTemplate{`
+		FROM {IMAGE}
+		RUN [ "$PWD" = '/' ]
+		WORKDIR test1
+		RUN [ "$PWD" = '/test1' ]
+		WORKDIR /test2
+		RUN [ "$PWD" = '/test2' ]
+		WORKDIR test3
+		RUN [ "$PWD" = '/test2/test3' ]
+	`, nil, nil}, t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.Config.WorkingDir != "/test2/test3" {
+		t.Fatalf("Expected workdir to be '/test2/test3', received '%s'", img.Config.WorkingDir)
+	}
+}
+
 func TestBuildEnv(t *testing.T) {
 	img, err := buildImage(testContextTemplate{`
         from {IMAGE}
@@ -491,7 +512,7 @@ func TestBuildExpose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if img.Config.PortSpecs[0] != "4243" {
+	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
 		t.Fail()
 	}
 }
@@ -588,6 +609,17 @@ func TestBuildImageWithCache(t *testing.T) {
 	template := testContextTemplate{`
         from {IMAGE}
         maintainer dockerio
+        `,
+		nil, nil}
+	checkCacheBehavior(t, template, true)
+}
+
+func TestBuildExposeWithCache(t *testing.T) {
+	template := testContextTemplate{`
+        from {IMAGE}
+        maintainer dockerio
+	expose 80
+	run echo hello
         `,
 		nil, nil}
 	checkCacheBehavior(t, template, true)
@@ -786,7 +818,7 @@ func TestForbiddenContextPath(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(srv, ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
@@ -832,7 +864,7 @@ func TestBuildADDFileNotFound(t *testing.T) {
 	}
 	dockerfile := constructDockerfile(context.dockerfile, ip, port)
 
-	buildfile := docker.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
+	buildfile := server.NewBuildFile(mkServerFromEngine(eng, t), ioutil.Discard, ioutil.Discard, false, true, false, ioutil.Discard, utils.NewStreamFormatter(false), nil, nil)
 	_, err = buildfile.Build(context.Archive(dockerfile, t))
 
 	if err == nil {
@@ -876,7 +908,7 @@ func TestBuildInheritance(t *testing.T) {
 	}
 
 	// from parent
-	if img.Config.PortSpecs[0] != "4243" {
+	if _, exists := img.Config.ExposedPorts[nat.NewPort("tcp", "4243")]; !exists {
 		t.Fail()
 	}
 }
@@ -904,8 +936,8 @@ func TestBuildFails(t *testing.T) {
 func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	_, err := buildImage(testContextTemplate{``, nil, nil}, t, nil, true)
 
-	if err != docker.ErrDockerfileEmpty {
-		t.Fatal("Expected: %v, got: %v", docker.ErrDockerfileEmpty, err)
+	if err != server.ErrDockerfileEmpty {
+		t.Fatal("Expected: %v, got: %v", server.ErrDockerfileEmpty, err)
 	}
 }
 

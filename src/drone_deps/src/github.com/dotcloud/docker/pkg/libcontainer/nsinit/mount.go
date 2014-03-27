@@ -4,6 +4,7 @@ package nsinit
 
 import (
 	"fmt"
+	"github.com/dotcloud/docker/pkg/libcontainer"
 	"github.com/dotcloud/docker/pkg/system"
 	"io/ioutil"
 	"os"
@@ -19,9 +20,12 @@ const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NOD
 //
 // There is no need to unmount the new mounts because as soon as the mount namespace
 // is no longer in use, the mounts will be removed automatically
-func setupNewMountNamespace(rootfs, console string, readonly bool) error {
-	// mount as slave so that the new mounts do not propagate to the host
-	if err := system.Mount("", "/", "", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
+func setupNewMountNamespace(rootfs string, bindMounts []libcontainer.Mount, console string, readonly, noPivotRoot bool) error {
+	flag := syscall.MS_PRIVATE
+	if noPivotRoot {
+		flag = syscall.MS_SLAVE
+	}
+	if err := system.Mount("", "/", "", uintptr(flag|syscall.MS_REC), ""); err != nil {
 		return fmt.Errorf("mounting / as slave %s", err)
 	}
 	if err := system.Mount(rootfs, rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
@@ -35,6 +39,23 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := mountSystem(rootfs); err != nil {
 		return fmt.Errorf("mount system %s", err)
 	}
+
+	for _, m := range bindMounts {
+		flags := syscall.MS_BIND | syscall.MS_REC
+		if !m.Writable {
+			flags = flags | syscall.MS_RDONLY
+		}
+		dest := filepath.Join(rootfs, m.Destination)
+		if err := system.Mount(m.Source, dest, "bind", uintptr(flags), ""); err != nil {
+			return fmt.Errorf("mounting %s into %s %s", m.Source, dest, err)
+		}
+		if m.Private {
+			if err := system.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
+				return fmt.Errorf("mounting %s private %s", dest, err)
+			}
+		}
+	}
+
 	if err := copyDevNodes(rootfs); err != nil {
 		return fmt.Errorf("copy dev nodes %s", err)
 	}
@@ -43,15 +64,30 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := setupDev(rootfs); err != nil {
 		return err
 	}
-	if console != "" {
-		if err := setupPtmx(rootfs, console); err != nil {
-			return err
-		}
+	if err := setupPtmx(rootfs, console); err != nil {
+		return err
 	}
 	if err := system.Chdir(rootfs); err != nil {
 		return fmt.Errorf("chdir into %s %s", rootfs, err)
 	}
 
+	if noPivotRoot {
+		if err := rootMsMove(rootfs); err != nil {
+			return err
+		}
+	} else {
+		if err := rootPivot(rootfs); err != nil {
+			return err
+		}
+	}
+
+	system.Umask(0022)
+
+	return nil
+}
+
+// use a pivot root to setup the rootfs
+func rootPivot(rootfs string) error {
 	pivotDir, err := ioutil.TempDir(rootfs, ".pivot_root")
 	if err != nil {
 		return fmt.Errorf("can't create pivot_root dir %s", pivotDir, err)
@@ -62,20 +98,28 @@ func setupNewMountNamespace(rootfs, console string, readonly bool) error {
 	if err := system.Chdir("/"); err != nil {
 		return fmt.Errorf("chdir / %s", err)
 	}
-
 	// path to pivot dir now changed, update
 	pivotDir = filepath.Join("/", filepath.Base(pivotDir))
-
 	if err := system.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
 		return fmt.Errorf("unmount pivot_root dir %s", err)
 	}
-
 	if err := os.Remove(pivotDir); err != nil {
 		return fmt.Errorf("remove pivot_root dir %s", err)
 	}
+	return nil
+}
 
-	system.Umask(0022)
-
+// use MS_MOVE and chroot to setup the rootfs
+func rootMsMove(rootfs string) error {
+	if err := system.Mount(rootfs, "/", "", syscall.MS_MOVE, ""); err != nil {
+		return fmt.Errorf("mount move %s into / %s", rootfs, err)
+	}
+	if err := system.Chroot("."); err != nil {
+		return fmt.Errorf("chroot . %s", err)
+	}
+	if err := system.Chdir("/"); err != nil {
+		return fmt.Errorf("chdir / %s", err)
+	}
 	return nil
 }
 
@@ -217,8 +261,10 @@ func setupPtmx(rootfs, console string) error {
 	if err := os.Symlink("pts/ptmx", ptmx); err != nil {
 		return fmt.Errorf("symlink dev ptmx %s", err)
 	}
-	if err := setupConsole(rootfs, console); err != nil {
-		return err
+	if console != "" {
+		if err := setupConsole(rootfs, console); err != nil {
+			return err
+		}
 	}
 	return nil
 }

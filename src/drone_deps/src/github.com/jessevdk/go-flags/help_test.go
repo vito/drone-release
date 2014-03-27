@@ -41,15 +41,17 @@ func helpDiff(a, b string) (string, error) {
 }
 
 type helpOptions struct {
-	Verbose  []bool       `short:"v" long:"verbose" description:"Show verbose debug information" ini-name:"verbose"`
-	Call     func(string) `short:"c" description:"Call phone number" ini-name:"call"`
-	PtrSlice []*string    `long:"ptrslice" description:"A slice of pointers to string"`
+	Verbose          []bool       `short:"v" long:"verbose" description:"Show verbose debug information" ini-name:"verbose"`
+	Call             func(string) `short:"c" description:"Call phone number" ini-name:"call"`
+	PtrSlice         []*string    `long:"ptrslice" description:"A slice of pointers to string"`
+	Default          string       `long:"default" default:"Some value" description:"Test default value"`
+	EmptyDescription bool         `long:"empty-description"`
 
 	OnlyIni string `ini-name:"only-ini" description:"Option only available in ini"`
 
 	Other struct {
-		StringSlice []string       `short:"s" description:"A slice of strings"`
-		IntMap      map[string]int `long:"intmap" description:"A map from string to int" ini-name:"int-map"`
+		StringSlice []string       `short:"s" default:"some" default:"value" description:"A slice of strings"`
+		IntMap      map[string]int `long:"intmap" default:"a:1" description:"A map from string to int" ini-name:"int-map"`
 	} `group:"Other Options"`
 
 	Command struct {
@@ -80,16 +82,18 @@ func TestHelp(t *testing.T) {
   TestHelp [OPTIONS] <command>
 
 Application Options:
-  -v, --verbose   Show verbose debug information
-  -c=             Call phone number
-      --ptrslice= A slice of pointers to string
+  -v, --verbose            Show verbose debug information
+  -c=                      Call phone number
+      --ptrslice=          A slice of pointers to string
+      --default=           Test default value (Some value)
+      --empty-description
 
 Other Options:
-  -s=             A slice of strings
-      --intmap=   A map from string to int
+  -s=                      A slice of strings (some, value)
+      --intmap=            A map from string to int (a:1)
 
 Help Options:
-  -h, --help      Show this help message
+  -h, --help               Show this help message
 
 Available commands:
   command  A command
@@ -142,6 +146,11 @@ Call phone number
 .TP
 \fB--ptrslice\fP
 A slice of pointers to string
+.TP
+\fB--default\fP
+Test default value
+.TP
+\fB--empty-description\fP
 .TP
 \fB-s\fP
 A slice of strings

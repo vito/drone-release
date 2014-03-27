@@ -2,6 +2,7 @@ package flags
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // ErrorType represents the type of error.
@@ -23,7 +24,7 @@ const (
 	// ErrMarshal indicates a marshalling error while converting values.
 	ErrMarshal
 
-	// ErrHelp indicates that the builtin help was shown (the error
+	// ErrHelp indicates that the built-in help was shown (the error
 	// contains the help message).
 	ErrHelp
 
@@ -52,6 +53,10 @@ const (
 	// ErrUnknownCommand indicates that an unknown command was specified.
 	ErrUnknownCommand
 )
+
+func (e ErrorType) String() string {
+	return reflect.TypeOf(e).Name()
+}
 
 // Error represents a parser error. The error returned from Parse is of this
 // type. The error contains both a Type and Message.

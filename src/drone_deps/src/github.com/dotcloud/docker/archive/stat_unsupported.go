@@ -1,15 +1,15 @@
-// +build !linux
+// +build !linux !amd64
 
 package archive
 
 import "syscall"
 
 func getLastAccess(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Atimespec
+	return syscall.Timespec{}
 }
 
 func getLastModification(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Mtimespec
+	return syscall.Timespec{}
 }
 
 func LUtimesNano(path string, ts []syscall.Timespec) error {
@@ -17,13 +17,5 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 }
 
 func UtimesNano(path string, ts []syscall.Timespec) error {
-	return ErrNotImplemented
-}
-
-func Lgetxattr(path string, attr string) ([]byte, error) {
-	return nil, ErrNotImplemented
-}
-
-func Lsetxattr(path string, attr string, data []byte, flags int) error {
 	return ErrNotImplemented
 }

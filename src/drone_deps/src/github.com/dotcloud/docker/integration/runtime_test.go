@@ -3,10 +3,11 @@ package docker
 import (
 	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/nat"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/sysinit"
 	"github.com/dotcloud/docker/utils"
 	"io"
@@ -15,7 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -24,25 +25,30 @@ import (
 )
 
 const (
-	unitTestImageName     = "docker-test-image"
-	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestImageIDShort  = "83599e29c455"
-	unitTestNetworkBridge = "testdockbr0"
-	unitTestStoreBase     = "/var/lib/docker/unit-tests"
-	testDaemonAddr        = "127.0.0.1:4270"
-	testDaemonProto       = "tcp"
+	unitTestImageName        = "docker-test-image"
+	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestImageIDShort     = "83599e29c455"
+	unitTestNetworkBridge    = "testdockbr0"
+	unitTestStoreBase        = "/var/lib/docker/unit-tests"
+	testDaemonAddr           = "127.0.0.1:4270"
+	testDaemonProto          = "tcp"
+	testDaemonHttpsProto     = "tcp"
+	testDaemonHttpsAddr      = "localhost:4271"
+	testDaemonRogueHttpsAddr = "localhost:4272"
 )
 
 var (
 	// FIXME: globalRuntime is deprecated by globalEngine. All tests should be converted.
-	globalRuntime   *docker.Runtime
-	globalEngine    *engine.Engine
-	startFds        int
-	startGoroutines int
+	globalRuntime          *runtime.Runtime
+	globalEngine           *engine.Engine
+	globalHttpsEngine      *engine.Engine
+	globalRogueHttpsEngine *engine.Engine
+	startFds               int
+	startGoroutines        int
 )
 
 // FIXME: nuke() is deprecated by Runtime.Nuke()
-func nuke(runtime *docker.Runtime) error {
+func nuke(runtime *runtime.Runtime) error {
 	return runtime.Nuke()
 }
 
@@ -117,9 +123,11 @@ func init() {
 	// (no tests are run directly in the base)
 	setupBaseImage()
 
-	// Create the "global runtime" with a long-running daemon for integration tests
+	// Create the "global runtime" with a long-running daemons for integration tests
 	spawnGlobalDaemon()
-	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
+	spawnLegitHttpsDaemon()
+	spawnRogueHttpsDaemon()
+	startFds, startGoroutines = utils.GetTotalUsedFds(), goruntime.NumGoroutine()
 }
 
 func setupBaseImage() {
@@ -170,9 +178,64 @@ func spawnGlobalDaemon() {
 	}
 }
 
+func spawnLegitHttpsDaemon() {
+	if globalHttpsEngine != nil {
+		return
+	}
+	globalHttpsEngine = spawnHttpsDaemon(testDaemonHttpsAddr, "fixtures/https/ca.pem",
+		"fixtures/https/server-cert.pem", "fixtures/https/server-key.pem")
+}
+
+func spawnRogueHttpsDaemon() {
+	if globalRogueHttpsEngine != nil {
+		return
+	}
+	globalRogueHttpsEngine = spawnHttpsDaemon(testDaemonRogueHttpsAddr, "fixtures/https/ca.pem",
+		"fixtures/https/server-rogue-cert.pem", "fixtures/https/server-rogue-key.pem")
+}
+
+func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
+	t := log.New(os.Stderr, "", 0)
+	root, err := newTestDirectory(unitTestStoreBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
+	// and we want to set it to true.
+
+	eng := newTestEngine(t, true, root)
+
+	// Spawn a Daemon
+	go func() {
+		utils.Debugf("Spawning https daemon for integration tests")
+		listenURL := &url.URL{
+			Scheme: testDaemonHttpsProto,
+			Host:   addr,
+		}
+		job := eng.Job("serveapi", listenURL.String())
+		job.SetenvBool("Logging", true)
+		job.SetenvBool("Tls", true)
+		job.SetenvBool("TlsVerify", true)
+		job.Setenv("TlsCa", cacert)
+		job.Setenv("TlsCert", cert)
+		job.Setenv("TlsKey", key)
+		if err := job.Run(); err != nil {
+			log.Fatalf("Unable to spawn the test daemon: %s", err)
+		}
+	}()
+
+	// Give some time to ListenAndServer to actually start
+	time.Sleep(time.Second)
+
+	if err := eng.Job("acceptconnections").Run(); err != nil {
+		log.Fatalf("Unable to accept connections for test api: %s", err)
+	}
+	return eng
+}
+
 // FIXME: test that ImagePull(json=true) send correct json output
 
-func GetTestImage(runtime *docker.Runtime) *docker.Image {
+func GetTestImage(runtime *runtime.Runtime) *image.Image {
 	imgs, err := runtime.Graph().Map()
 	if err != nil {
 		log.Fatalf("Unable to get the test image: %s", err)
@@ -356,7 +419,7 @@ func TestGet(t *testing.T) {
 
 }
 
-func startEchoServerContainer(t *testing.T, proto string) (*docker.Runtime, *docker.Container, string) {
+func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *runtime.Container, string) {
 	var (
 		err     error
 		id      string
@@ -587,90 +650,6 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	container2.State.SetStopped(0)
-}
-
-func TestReloadContainerLinks(t *testing.T) {
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: here we don't use NewTestEngine because it calls initserver with Autorestart=false,
-	// and we want to set it to true.
-
-	eng := newTestEngine(t, true, root)
-
-	runtime1 := mkRuntimeFromEngine(eng, t)
-	defer nuke(runtime1)
-	// Create a container with one instance of docker
-	container1, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/sh"}, t)
-	defer runtime1.Destroy(container1)
-
-	// Create a second container meant to be killed
-	container2, _, _ := mkContainer(runtime1, []string{"-i", "_", "/bin/cat"}, t)
-	defer runtime1.Destroy(container2)
-
-	// Start the container non blocking
-	if err := container2.Start(); err != nil {
-		t.Fatal(err)
-	}
-	// Add a link to container 2
-	// FIXME @shykes: setting hostConfig.Links seems redundant with calling RegisterLink().
-	// Why do we need it @crosbymichael?
-	// container1.hostConfig.Links = []string{"/" + container2.ID + ":first"}
-	if err := runtime1.RegisterLink(container1, container2, "first"); err != nil {
-		t.Fatal(err)
-	}
-	if err := container1.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	if !container2.State.IsRunning() {
-		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
-	}
-
-	if !container1.State.IsRunning() {
-		t.Fatalf("Container %s should appear as running but isn't", container1.ID)
-	}
-
-	if len(runtime1.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime1.List()))
-	}
-
-	// Here are are simulating a docker restart - that is, reloading all containers
-	// from scratch
-	eng = newTestEngine(t, false, root)
-	runtime2 := mkRuntimeFromEngine(eng, t)
-	if len(runtime2.List()) != 2 {
-		t.Errorf("Expected 2 container, %v found", len(runtime2.List()))
-	}
-	runningCount := 0
-	for _, c := range runtime2.List() {
-		if c.State.IsRunning() {
-			runningCount++
-		}
-	}
-	if runningCount != 2 {
-		t.Fatalf("Expected 2 container alive, %d found", runningCount)
-	}
-
-	// FIXME: we no longer test if containers were registered in the right order,
-	// because there is no public
-	// Make sure container 2 ( the child of container 1 ) was registered and started first
-	// with the runtime
-	//
-	containers := runtime2.List()
-	if len(containers) == 0 {
-		t.Fatalf("Runtime has no containers")
-	}
-	first := containers[0]
-	if first.ID != container2.ID {
-		t.Fatalf("Container 2 %s should be registered first in the runtime", container2.ID)
-	}
-
-	// Verify that the link is still registered in the runtime
-	if c := runtime2.Get(container1.Name); c == nil {
-		t.Fatal("Named container is no longer registered after restart")
-	}
 }
 
 func TestDefaultContainerName(t *testing.T) {

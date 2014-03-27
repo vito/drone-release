@@ -5,6 +5,7 @@ package nsinit
 import (
 	"fmt"
 	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/dotcloud/docker/pkg/libcontainer/apparmor"
 	"github.com/dotcloud/docker/pkg/libcontainer/capabilities"
 	"github.com/dotcloud/docker/pkg/libcontainer/network"
 	"github.com/dotcloud/docker/pkg/libcontainer/utils"
@@ -23,16 +24,17 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	}
 
 	// We always read this as it is a way to sync with the parent as well
+	ns.logger.Printf("reading from sync pipe fd %d\n", syncPipe.child.Fd())
 	context, err := syncPipe.ReadFromParent()
 	if err != nil {
 		syncPipe.Close()
 		return err
 	}
+	ns.logger.Println("received context from parent")
 	syncPipe.Close()
 
 	if console != "" {
-		// close pipes so that we can replace it with the pty
-		closeStdPipes()
+		ns.logger.Printf("setting up %s as console\n", console)
 		slave, err := system.OpenTerminal(console, syscall.O_RDWR)
 		if err != nil {
 			return fmt.Errorf("open terminal %s", err)
@@ -49,13 +51,13 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-
-	/*
-		if err := system.ParentDeathSignal(); err != nil {
-			return fmt.Errorf("parent death signal %s", err)
-		}
-	*/
-	if err := setupNewMountNamespace(rootfs, console, container.ReadonlyFs); err != nil {
+	// this is our best effort to let the process know that the parent has died and that it
+	// should it should act on it how it sees fit
+	if err := system.ParentDeathSignal(uintptr(syscall.SIGTERM)); err != nil {
+		return fmt.Errorf("parent death signal %s", err)
+	}
+	ns.logger.Println("setup mount namespace")
+	if err := setupNewMountNamespace(rootfs, container.Mounts, console, container.ReadonlyFs, container.NoPivotRoot); err != nil {
 		return fmt.Errorf("setup mount namespace %s", err)
 	}
 	if err := setupNetwork(container, context); err != nil {
@@ -67,13 +69,15 @@ func (ns *linuxNs) Init(container *libcontainer.Container, uncleanRootfs, consol
 	if err := finalizeNamespace(container); err != nil {
 		return fmt.Errorf("finalize namespace %s", err)
 	}
-	return system.Execv(args[0], args[0:], container.Env)
-}
 
-func closeStdPipes() {
-	os.Stdin.Close()
-	os.Stdout.Close()
-	os.Stderr.Close()
+	if profile := container.Context["apparmor_profile"]; profile != "" {
+		ns.logger.Printf("setting apparmor profile %s\n", profile)
+		if err := apparmor.ApplyProfile(os.Getpid(), profile); err != nil {
+			return err
+		}
+	}
+	ns.logger.Printf("execing %s\n", args[0])
+	return system.Execv(args[0], args[0:], container.Env)
 }
 
 func setupUser(container *libcontainer.Container) error {
@@ -109,8 +113,8 @@ func setupUser(container *libcontainer.Container) error {
 // dupSlave dup2 the pty slave's fd into stdout and stdin and ensures that
 // the slave's fd is 0, or stdin
 func dupSlave(slave *os.File) error {
-	if slave.Fd() != 0 {
-		return fmt.Errorf("slave fd not 0 %d", slave.Fd())
+	if err := system.Dup2(slave.Fd(), 0); err != nil {
+		return err
 	}
 	if err := system.Dup2(slave.Fd(), 1); err != nil {
 		return err
@@ -130,7 +134,11 @@ func setupNetwork(container *libcontainer.Container, context libcontainer.Contex
 		if err != nil {
 			return err
 		}
-		return strategy.Initialize(config, context)
+
+		err1 := strategy.Initialize(config, context)
+		if err1 != nil {
+			return err1
+		}
 	}
 	return nil
 }

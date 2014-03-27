@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/dotcloud/docker/pkg/system"
 	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
@@ -168,7 +169,7 @@ func addTarFile(path, name string, tw *tar.Writer) error {
 
 	}
 
-	capability, _ := Lgetxattr(path, "security.capability")
+	capability, _ := system.Lgetxattr(path, "security.capability")
 	if capability != nil {
 		hdr.Xattrs = make(map[string]string)
 		hdr.Xattrs["security.capability"] = string(capability)
@@ -259,7 +260,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 	}
 
 	for key, value := range hdr.Xattrs {
-		if err := Lsetxattr(path, key, []byte(value), 0); err != nil {
+		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
 			return err
 		}
 	}
@@ -275,11 +276,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader) e
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
 	if hdr.Typeflag != tar.TypeSymlink {
-		if err := UtimesNano(path, ts); err != nil {
+		if err := system.UtimesNano(path, ts); err != nil {
 			return err
 		}
 	} else {
-		if err := LUtimesNano(path, ts); err != nil {
+		if err := system.LUtimesNano(path, ts); err != nil {
 			return err
 		}
 	}
@@ -403,7 +404,7 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(parentPath, 600)
+				err = os.MkdirAll(parentPath, 0777)
 				if err != nil {
 					return err
 				}
@@ -614,6 +615,9 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	if _, err := io.Copy(f, src); err != nil {
+		return nil, err
+	}
+	if err = f.Sync(); err != nil {
 		return nil, err
 	}
 	if _, err := f.Seek(0, 0); err != nil {

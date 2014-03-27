@@ -80,8 +80,7 @@ func writeGroupIni(group *Group, namespace string, writer io.Writer, options Ini
 
 		val := option.value
 
-		if (options&IniIncludeDefaults) == IniNone &&
-			reflect.DeepEqual(val, option.defaultValue) {
+		if (options&IniIncludeDefaults) == IniNone && reflect.DeepEqual(val.Interface(), option.defaultValue.Interface()) {
 			continue
 		}
 
@@ -90,17 +89,22 @@ func writeGroupIni(group *Group, namespace string, writer io.Writer, options Ini
 			sectionwritten = true
 		}
 
-		if comments {
+		if comments && len(option.Description) != 0 {
 			fmt.Fprintf(writer, "; %s\n", option.Description)
 		}
 
 		oname := optionIniName(option)
 
+		commentOption := ""
+		if (options&(IniIncludeDefaults|IniCommentDefaults)) == IniIncludeDefaults|IniCommentDefaults && reflect.DeepEqual(val.Interface(), option.defaultValue.Interface()) {
+			commentOption = "; "
+		}
+
 		switch val.Type().Kind() {
 		case reflect.Slice:
 			for idx := 0; idx < val.Len(); idx++ {
 				v, _ := convertToString(val.Index(idx), option.tag)
-				fmt.Fprintf(writer, "%s = %s\n", oname, v)
+				fmt.Fprintf(writer, "%s%s = %s\n", commentOption, oname, v)
 			}
 
 			if val.Len() == 0 {
@@ -111,7 +115,7 @@ func writeGroupIni(group *Group, namespace string, writer io.Writer, options Ini
 				k, _ := convertToString(key, option.tag)
 				v, _ := convertToString(val.MapIndex(key), option.tag)
 
-				fmt.Fprintf(writer, "%s = %s:%s\n", oname, k, v)
+				fmt.Fprintf(writer, "%s%s = %s:%s\n", commentOption, oname, k, v)
 			}
 
 			if val.Len() == 0 {
@@ -121,9 +125,9 @@ func writeGroupIni(group *Group, namespace string, writer io.Writer, options Ini
 			v, _ := convertToString(val, option.tag)
 
 			if len(v) != 0 {
-				fmt.Fprintf(writer, "%s = %s\n", oname, v)
+				fmt.Fprintf(writer, "%s%s = %s\n", commentOption, oname, v)
 			} else {
-				fmt.Fprintf(writer, "%s =\n", oname)
+				fmt.Fprintf(writer, "%s%s =\n", commentOption, oname)
 			}
 		}
 

@@ -3,8 +3,8 @@ package runconfig
 import (
 	"fmt"
 	"github.com/dotcloud/docker/nat"
+	"github.com/dotcloud/docker/opts"
 	flag "github.com/dotcloud/docker/pkg/mflag"
-	"github.com/dotcloud/docker/pkg/opts"
 	"github.com/dotcloud/docker/pkg/sysinfo"
 	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
@@ -15,7 +15,7 @@ import (
 var (
 	ErrInvalidWorikingDirectory = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictAttachDetach     = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: -rm and -d")
+	ErrConflictDetachAutoRemove = fmt.Errorf("Conflicting options: --rm and -d")
 )
 
 //FIXME Only used in tests
@@ -42,6 +42,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flPublish     opts.ListOpts
 		flExpose      opts.ListOpts
 		flDns         opts.ListOpts
+		flDnsSearch   = opts.NewListOpts(opts.ValidateDomain)
 		flVolumesFrom opts.ListOpts
 		flLxcOpts     opts.ListOpts
 
@@ -73,8 +74,9 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host (format: %s) (use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom dns servers")
+	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom dns search domains")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options -lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -196,6 +198,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Env:             flEnv.GetAll(),
 		Cmd:             runCmd,
 		Dns:             flDns.GetAll(),
+		DnsSearch:       flDnsSearch.GetAll(),
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		VolumesFrom:     strings.Join(flVolumesFrom.GetAll(), ","),

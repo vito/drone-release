@@ -21,6 +21,7 @@ func operationEmbed(pkg *build.Package) {
 	// notify user when no calls to rice.FindBox are made (is this an error and therefore os.Exit(1) ?
 	if len(boxMap) == 0 {
 		fmt.Println("no calls to rice.FindBox() found")
+		return
 	}
 
 	verbosef("\n")
@@ -52,12 +53,16 @@ func operationEmbed(pkg *build.Package) {
 				os.Exit(1)
 			}
 
-			path = strings.Replace(path, "\\", "/", -1)
+			filename := strings.TrimPrefix(path, boxPath)
+			filename = strings.Replace(filename, "\\", "/", -1)
+			filename = strings.TrimPrefix(filename, "/")
 			if info.IsDir() {
 				dirData := &dirDataType{
 					Identifier: "dir_" + nextIdentifier(),
-					FileName:   strings.TrimPrefix(strings.TrimPrefix(path, boxPath), "/"),
+					FileName:   filename,
 					ModTime:    info.ModTime().Unix(),
+					ChildFiles: make([]*fileDataType, 0),
+					ChildDirs:  make([]*dirDataType, 0),
 				}
 				verbosef("\tincludes dir: '%s'\n", dirData.FileName)
 				box.Dirs[dirData.FileName] = dirData
@@ -71,7 +76,7 @@ func operationEmbed(pkg *build.Package) {
 			} else {
 				fileData := &fileDataType{
 					Identifier: "file_" + nextIdentifier(),
-					FileName:   strings.TrimPrefix(strings.TrimPrefix(path, boxPath), "/"),
+					FileName:   filename,
 					ModTime:    info.ModTime().Unix(),
 				}
 				verbosef("\tincludes file: '%s'\n", fileData.FileName)

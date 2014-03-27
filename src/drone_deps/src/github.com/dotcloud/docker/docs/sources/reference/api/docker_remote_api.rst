@@ -50,6 +50,12 @@ What's new
 
    **New!** You can now use the force parameter to force delete of an image, even if it's
    tagged in multiple repositories.
+   **New!** You can now use the noprune parameter to prevent the deletion of parent images
+
+.. http:delete:: /containers/(id)
+
+  **New!** You can now use the force paramter to force delete a container, even if
+  it is currently running
 
 v1.9
 ****
@@ -198,7 +204,7 @@ What's new
 
 .. http:get:: /images/viz
 
-   This URI no longer exists.  The ``images -viz`` output is now generated in
+   This URI no longer exists.  The ``images --viz`` output is now generated in
    the client, using the ``/images/json`` data.
 
 v1.6
