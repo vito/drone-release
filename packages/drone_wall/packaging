@@ -1,22 +1,27 @@
 set -e -x
 
-mkdir -p ${BOSH_INSTALL_TARGET}/bin
+REPO_NAME=github.com/drone/drone-wall
+REPO_DIR=${BOSH_INSTALL_TARGET}/src/${REPO_NAME}
 
-mkdir -p drone_deps/src/github.com/drone
-mv drone-wall drone_deps/src/github.com/drone/drone-wall
-mv drone drone_deps/src/github.com/drone/drone
-mv drone_deps drone-wall
+DRONE_REPO_NAME=github.com/drone/drone
+DRONE_REPO_DIR=${BOSH_INSTALL_TARGET}/src/${DRONE_REPO_NAME}
+
+mkdir -p $(dirname $REPO_DIR) $(dirname $DRONE_REPO_DIR)
+
+cp -a $(basename $REPO_NAME) $REPO_DIR
+cp -a $(basename $DRONE_REPO_NAME) $DRONE_REPO_DIR
 
 export GOROOT=$(readlink -nf /var/vcap/packages/golang_1.2)
-export GOPATH=$PWD/drone-wall
-export PATH=$GOROOT/bin:$PATH
-export PATH=$GOPATH/bin:$PATH
+export GOPATH=${BOSH_INSTALL_TARGET}:${BOSH_COMPILE_TARGET}/drone/Godeps/_workspace
+export PATH=${GOROOT}/bin:$PATH
+export PATH=${BOSH_COMPILE_TARGET}/drone/Godeps/_workspace/bin:$PATH
 
 go install github.com/GeertJohan/go.rice/rice
 
-pushd $GOPATH/src/github.com/drone/drone-wall
+pushd ${BOSH_INSTALL_TARGET}/src/github.com/drone/drone-wall
   go build -o drone-wall
   rice append --exec drone-wall
 
-  mv drone-wall ${BOSH_INSTALL_TARGET}/bin
+  mkdir -p ${BOSH_INSTALL_TARGET}/bin
+  mv drone-wall ${BOSH_INSTALL_TARGET}/bin/drone-wall
 popd

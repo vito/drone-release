@@ -1,28 +1,23 @@
-set -e -x
+set -e
 
-mkdir -p ${BOSH_INSTALL_TARGET}/bin
+REPO_NAME=github.com/drone/drone
 
-mkdir -p drone_deps/src/github.com/drone
-mv drone drone_deps/src/github.com/drone/drone
-mv drone_deps drone
+REPO_DIR=${BOSH_INSTALL_TARGET}/src/${REPO_NAME}
 
-export PATH=/var/vcap/packages/git/bin:$PATH
+mkdir -p $(dirname $REPO_DIR)
+
+cp -a $(basename $REPO_NAME) $REPO_DIR
 
 export GOROOT=$(readlink -nf /var/vcap/packages/golang_1.2)
-export GOPATH=$PWD/drone
-export PATH=$GOROOT/bin:$PATH
-export PATH=$GOPATH/bin:$PATH
+export GOPATH=${BOSH_INSTALL_TARGET}:${REPO_DIR}/Godeps/_workspace
+export PATH=${GOROOT}/bin:$PATH
+export PATH=${REPO_DIR}/Godeps/_workspace/bin:$PATH
 
-go install github.com/GeertJohan/go.rice/rice
-
-cd $GOPATH/src/github.com/drone/drone
-
-make embed
-
-pushd cmd/drone
-  go build -o ${BOSH_INSTALL_TARGET}/bin/drone
+pushd $REPO_DIR
+  make embed
 popd
 
-pushd cmd/droned
+pushd $REPO_DIR/cmd/droned
+  mkdir -p ${BOSH_INSTALL_TARGET}/bin
   go build -ldflags "-X main.version bosh" -o ${BOSH_INSTALL_TARGET}/bin/droned
 popd

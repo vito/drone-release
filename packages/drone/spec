@@ -2,9 +2,9 @@
 name: drone
 
 dependencies:
-- golang_1.2
-- git
+  - golang_1.2
 
 files:
-- drone/**/*
-- drone_deps/**/*
+  - drone/**/*.*
+  - drone/cmd/droned/assets/**/*
+  - drone/**/Makefile
