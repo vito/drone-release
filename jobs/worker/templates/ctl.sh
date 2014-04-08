@@ -36,6 +36,7 @@ case $1 in
       -H tcp://0.0.0.0:4243 \
       -p $RUN_DIR/worker.pid \
       -g $DOCKER_DATA_DIR \
+      -mtu 1500 \
       1>>$LOG_DIR/worker.stdout.log \
       2>>$LOG_DIR/worker.stderr.log
 
