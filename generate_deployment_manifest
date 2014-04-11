@@ -12,7 +12,7 @@ if [ "$infrastructure" != "aws" ] && [ "$infrastructure" != "warden" ] && [ "$in
 fi
 
 spiff merge \
-  $templates/cf-deployment.yml \
-  $templates/cf-jobs.yml \
-  $templates/cf-infrastructure-${infrastructure}.yml \
+  $templates/deployment.yml \
+  $templates/jobs.yml \
+  $templates/infrastructure-${infrastructure}.yml \
   $*
