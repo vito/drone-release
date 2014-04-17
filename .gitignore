@@ -12,5 +12,5 @@ dev_releases
 *~
 *#
 #*
-deployment.yml
+/*.yml
 stub.yml
