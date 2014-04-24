@@ -2,10 +2,6 @@
 
 set -e
 
-if grep -q /sys/fs/cgroup /proc/mounts; then
-  exit 0
-fi
-
 if ! mountpoint -q /sys/fs/cgroup; then
   mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
 fi
