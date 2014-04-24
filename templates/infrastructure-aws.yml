@@ -1,6 +1,6 @@
 meta:
   stemcell:
-    name: bosh-aws-xen-ubuntu
+    name: bosh-aws-xen-ubuntu-trusty-go_agent
     version: latest
 
   zones:
