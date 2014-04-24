@@ -27,6 +27,9 @@ case $1 in
     # mount cgroups
     $(dirname $0)/cgroups-mount
 
+    # workaround; trusty stemcell is missing this
+    apt-get -y install ca-certificates
+
     # the sudo is, surprisingly, necessary (but not on 13.10's kernel)
     exec sudo $DOCKER_PKG/bin/docker -d \
       -H tcp://0.0.0.0:4243 \
