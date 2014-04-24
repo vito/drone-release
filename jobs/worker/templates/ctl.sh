@@ -4,11 +4,8 @@ RUN_DIR=/var/vcap/sys/run/worker
 LOG_DIR=/var/vcap/sys/log/worker
 PIDFILE=$RUN_DIR/worker.pid
 
-DOCKER_PKG=/var/vcap/packages/docker_0.8.0
+DOCKER_PKG=/var/vcap/packages/docker
 DOCKER_DATA_DIR=/var/vcap/data/docker
-
-LXC_PKG=/var/vcap/packages/lxc_0.9.0
-LXC_DATA_DIR=/var/vcap/data/lxc
 
 source /var/vcap/packages/pid_utils/pid_utils.sh
 
@@ -24,7 +21,6 @@ case $1 in
     chown -R vcap:vcap $RUN_DIR
 
     mkdir -p $DOCKER_DATA_DIR
-    mkdir -p $LXC_DATA_DIR
 
     dpkg -i $DOCKER_PKG/aufs-tools_20110410-1_amd64.deb
 
@@ -32,7 +28,7 @@ case $1 in
     $(dirname $0)/cgroups-mount
 
     # the sudo is, surprisingly, necessary (but not on 13.10's kernel)
-    exec sudo PATH=$LXC_PKG/bin:$PATH $DOCKER_PKG/bin/docker -d \
+    exec sudo $DOCKER_PKG/bin/docker -d \
       -H tcp://0.0.0.0:4243 \
       -p $RUN_DIR/worker.pid \
       -g $DOCKER_DATA_DIR \
