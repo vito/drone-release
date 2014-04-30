@@ -30,8 +30,10 @@ case $1 in
     # workaround; trusty stemcell is missing this
     apt-get -y install ca-certificates
 
-    # the sudo is, surprisingly, necessary (but not on 13.10's kernel)
-    exec sudo $DOCKER_PKG/bin/docker -d \
+    # workaround; memory + swap accounting in cgroups is not enabled
+    swapoff -a
+
+    exec $DOCKER_PKG/bin/docker -d \
       -H tcp://0.0.0.0:4243 \
       -p $RUN_DIR/worker.pid \
       -g $DOCKER_DATA_DIR \
