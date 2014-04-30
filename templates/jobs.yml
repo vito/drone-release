@@ -2,7 +2,11 @@ networks: (( merge ))
 
 jobs:
   - name: drone
-    template: ["worker", "web"]
+    templates:
+      - name: worker
+        release: drone
+      - name: web
+        release: drone
     instances: 1
     resource_pool: drone
     persistent_disk: 1024
