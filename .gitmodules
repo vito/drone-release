@@ -1,6 +1,6 @@
 [submodule "src/drone"]
 	path = src/drone
-	url = https://github.com/vito/drone.git
+	url = https://github.com/drone/drone.git
 [submodule "src/drone-wall"]
 	path = src/drone-wall
 	url = https://github.com/drone/drone-wall.git
